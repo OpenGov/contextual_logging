@@ -57,6 +57,7 @@ module ContextualLogging
 
         starting_context = {
           request_uuid: request.uuid,
+          page_uuid: request.headers['X-PAGE-ID'],
           request_method: request.request_method,
           request_remote_ip: request.ip,
           request_path: request.filtered_path,
