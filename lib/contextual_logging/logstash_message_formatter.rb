@@ -1,16 +1,20 @@
 module ContextualLogging
   class LogstashMessageFormatter
-    def format(severity, message, extra_context)
-      max_length = 2000
+    MAX_MESSAGE_LENGTH = 2000
 
+    def format(severity, message, extra_context)
       if severity == 'INFO'
-        message = message[0...max_length]
-        limited_extra_context = HashWithIndifferentAccess.new()
+        truncated_message = message[0...MAX_MESSAGE_LENGTH]
+        limited_extra_context = HashWithIndifferentAccess.new
         extra_context.each do |key,value|
-          if value.class == HashWithIndifferentAccess
-            limited_extra_context[key] = HashWithIndifferentAccess.new()
+          if value.is_a?(Hash)
+            limited_extra_context[key] = HashWithIndifferentAccess.new
             value.each do |k,v|
-              limited_extra_context[key][k] = v.inspect[0...max_length]
+              if v.is_a?(String)
+                limited_extra_context[key][k] = v[0...MAX_MESSAGE_LENGTH]
+              else
+                limited_extra_context[key][k] = v.inspect[0...MAX_MESSAGE_LENGTH]
+              end
             end
           else
             limited_extra_context[key] = value
@@ -18,8 +22,14 @@ module ContextualLogging
         end
       end
 
-      msg_hash = HashWithIndifferentAccess.new('message' => message, 'log_level' => severity)
-      logstash_data = (severity == 'INFO') ? limited_extra_context.merge(msg_hash) : extra_context.merge(msg_hash)
+      if severity == 'INFO'
+        msg_hash = HashWithIndifferentAccess.new('message' => truncated_message, 'log_level' => severity)
+        logstash_data = limited_extra_context.merge(msg_hash)
+      else
+        msg_hash = HashWithIndifferentAccess.new('message' => message, 'log_level' => severity)
+        logstash_data = extra_context.merge(msg_hash)
+      end
+
       logstash_event = LogStash::Event.new(logstash_data)
       logstash_event.to_json
     end
