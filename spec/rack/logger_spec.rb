@@ -42,7 +42,8 @@ describe ContextualLogging::Rack::Logger do
 
   it "logs the initial request with added context" do
     req_id = SecureRandom.hex(16)
-    env_with_req_id = env_for('/index', "REMOTE_ADDR" => '10.10.0.5', "action_dispatch.request_id" => req_id)
+    page_id = SecureRandom.hex
+    env_with_req_id = env_for('/index', "REMOTE_ADDR" => '10.10.0.5', "action_dispatch.request_id" => req_id, 'X-PAGE-ID' => page_id)
     app = ->(env) { [200, env, "app"] }
     request_path = nil
     some_taggers = [:uuid, ->(req) { request_path = req.path }]
@@ -58,6 +59,7 @@ describe ContextualLogging::Rack::Logger do
     expect(log_lines.size).to eql(1)
     parsed = JSON[log_lines.last]
     expect(parsed['request_uuid']).to eql(req_id)
+    expect(parsed['page_uuid']).to eq(page_id)
     expect(parsed['message']).to match(%r{Started GET "/index" for 10\.10\.0\.5 at })
     expect(parsed['tags']).to eql([req_id, '/index'])
     expect(parsed['extra_context']).to eql("extraaaa:#{req_id}")
